@@ -1317,6 +1317,13 @@ class ServiceBrowser(threading.Thread):
     def run(self):
         self.zc.add_listener(self, DNSQuestion(self.type, _TYPE_PTR, _CLASS_IN))
 
+        out = DNSOutgoing(_FLAGS_QR_QUERY)
+        out.add_question(DNSQuestion(self.type, _TYPE_PTR, _CLASS_IN))
+        for record in self.services.values():
+            if not record.is_expired(now):
+                out.add_answer_at_time(record, now)
+
+        self.zc.send(out)
         while True:
             now = current_time_millis()
             if len(self._handlers_to_call) == 0 and self.next_time > now:
@@ -1325,13 +1332,6 @@ class ServiceBrowser(threading.Thread):
                 return
             now = current_time_millis()
             if self.next_time <= now:
-                out = DNSOutgoing(_FLAGS_QR_QUERY)
-                out.add_question(DNSQuestion(self.type, _TYPE_PTR, _CLASS_IN))
-                for record in self.services.values():
-                    if not record.is_expired(now):
-                        out.add_answer_at_time(record, now)
-
-                self.zc.send(out)
                 self.next_time = now + self.delay
                 self.delay = min(20 * 1000, self.delay * 2)
 
